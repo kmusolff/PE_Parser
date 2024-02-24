@@ -132,7 +132,7 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //    WORD    MinorSubsystemVersion;
 //    DWORD   Win32VersionValue;
 //    DWORD   SizeOfImage;		//size of the image in memory when the executable file is loaded into the process's address space
-//    DWORD   SizeOfHeaders;	
+//    DWORD   SizeOfHeaders;	//size of all headers preceding the first section
 //    DWORD   CheckSum;
 //    WORD    Subsystem;
 //    WORD    DllCharacteristics;
@@ -141,10 +141,35 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //    DWORD   SizeOfHeapReserve;
 //    DWORD   SizeOfHeapCommit;
 //    DWORD   LoaderFlags;
-//    DWORD   NumberOfRvaAndSizes;
+//    DWORD   NumberOfRvaAndSizes;	// number of entries in the data directory, 0x10 = 16 by default
 //    IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 //} IMAGE_OPTIONAL_HEADER32, * PIMAGE_OPTIONAL_HEADER32;
 
+
+//// Directory Entries
+//
+//#define IMAGE_DIRECTORY_ENTRY_EXPORT          0   // Export Directory
+//#define IMAGE_DIRECTORY_ENTRY_IMPORT          1   // Import Directory
+//#define IMAGE_DIRECTORY_ENTRY_RESOURCE        2   // Resource Directory
+//#define IMAGE_DIRECTORY_ENTRY_EXCEPTION       3   // Exception Directory
+//#define IMAGE_DIRECTORY_ENTRY_SECURITY        4   // Security Directory
+//#define IMAGE_DIRECTORY_ENTRY_BASERELOC       5   // Base Relocation Table
+//#define IMAGE_DIRECTORY_ENTRY_DEBUG           6   // Debug Directory
+////      IMAGE_DIRECTORY_ENTRY_COPYRIGHT       7   // (X86 usage)
+//#define IMAGE_DIRECTORY_ENTRY_ARCHITECTURE    7   // Architecture Specific Data
+//#define IMAGE_DIRECTORY_ENTRY_GLOBALPTR       8   // RVA of GP
+//#define IMAGE_DIRECTORY_ENTRY_TLS             9   // TLS Directory
+//#define IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    10   // Load Configuration Directory
+//#define IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   11   // Bound Import Directory in headers
+//#define IMAGE_DIRECTORY_ENTRY_IAT            12   // Import Address Table
+//#define IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   13   // Delay Load Import Descriptors
+//#define IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR 14   // COM Runtime descriptor
+
+
+//typedef struct _IMAGE_DATA_DIRECTORY {
+//	DWORD   VirtualAddress;
+//	DWORD   Size;
+//} IMAGE_DATA_DIRECTORY, * PIMAGE_DATA_DIRECTORY;
 
 //typedef struct _IMAGE_FILE_HEADER {
 //	WORD    Machine;
@@ -181,11 +206,23 @@ void ParseFileHeader(IMAGE_FILE_HEADER FileHdr) {
 	printf("Number of sections: %d\n", FileHdr.NumberOfSections);
 }
 
-void ParseOptHeader(LPVOID OptHdr) {
+void ParseOptHeader(IMAGE_OPTIONAL_HEADER OptHdr) {
 
+	printf("Magic: 0x%x\n", OptHdr.Magic);
+
+	printf("Size of .code: 0x%x = %d\n", OptHdr.SizeOfCode, OptHdr.SizeOfCode);
+
+	printf("Size of image in memory: 0x%x = %d\n", OptHdr.SizeOfImage, OptHdr.SizeOfImage);
+
+	printf("Size of headers (RVA of first section): 0x%x = %d\n", OptHdr.SizeOfHeaders, OptHdr.SizeOfHeaders);
+	
 }
 
-
+void ParseDataDir(IMAGE_OPTIONAL_HEADER OptHdr) {
+	for (int i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++) {
+		printf("Data directory index %d: RVA=%d Size=%d\n", i, OptHdr.DataDirectory[i].VirtualAddress, OptHdr.DataDirectory[i].Size);
+	}
+}
 
 int main(int argc, char* argv[])
 {
@@ -215,7 +252,13 @@ int main(int argc, char* argv[])
 
 	printf("\n### PARSING OPTIONAL HEADER ###\n\n");
 
-	IMAGE_OPTIONAL_HEADER pOptHdr = (IMAGE_OPTIONAL_HEADER)pNTHeaders->OptionalHeader;
+	IMAGE_OPTIONAL_HEADER OptHdr = (IMAGE_OPTIONAL_HEADER)pNTHeaders->OptionalHeader;
+
+	ParseOptHeader(OptHdr);
+
+	printf("\n### PARSING DATA DIRECTORY ###\n\n");
+
+	ParseDataDir(OptHdr);
 
 	return 0;
 }
