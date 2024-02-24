@@ -54,11 +54,11 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 	// To extract ASCII Values, we can cast WORD to char and shift 
 	printf("DOS Header Magic: 0x%x %c%c\n", DOSHeader->e_magic, (char)(DOSHeader->e_magic), (char)(DOSHeader->e_magic >> 8));
 
-	printf("Offset to PE Header: 0x%x = %d\n\n", DOSHeader->e_lfanew, DOSHeader->e_lfanew);
+	printf("Offset to NT Headers: 0x%x = %d\n\n", DOSHeader->e_lfanew, DOSHeader->e_lfanew);
 
 	PIMAGE_NT_HEADERS nt = (PIMAGE_NT_HEADERS)((PBYTE)lpHeaderAddr + DOSHeader->e_lfanew);
 
-	//add the offset in bytes to get to NT Headers 
+	//add the offset in bytes to get to NT Headers, hence casting to PBYTE
 	return (PIMAGE_NT_HEADERS)((PBYTE)lpHeaderAddr + DOSHeader->e_lfanew);
 }
 
@@ -69,15 +69,6 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //	IMAGE_OPTIONAL_HEADER64 OptionalHeader;
 //} IMAGE_NT_HEADERS64, * PIMAGE_NT_HEADERS64;
 
-//typedef struct _IMAGE_FILE_HEADER {
-//	WORD    Machine;
-//	WORD    NumberOfSections;
-//	DWORD   TimeDateStamp;
-//	DWORD   PointerToSymbolTable;
-//	DWORD   NumberOfSymbols;
-//	WORD    SizeOfOptionalHeader;
-//	WORD    Characteristics;
-//} IMAGE_FILE_HEADER, * PIMAGE_FILE_HEADER;
 
 //typedef struct _IMAGE_OPTIONAL_HEADER64 {
 //	WORD        Magic;
@@ -120,18 +111,17 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //    WORD    Magic;
 //    BYTE    MajorLinkerVersion;
 //    BYTE    MinorLinkerVersion;
-//    DWORD   SizeOfCode;
-//    DWORD   SizeOfInitializedData;
-//    DWORD   SizeOfUninitializedData;
-//    DWORD   AddressOfEntryPoint;
-//    DWORD   BaseOfCode;
-//    DWORD   BaseOfData;
-//
+//    DWORD   SizeOfCode; // Size of .code section in bytes
+//    DWORD   SizeOfInitializedData; // Size of .data section in bytes
+//    DWORD   SizeOfUninitializedData;	// Size of .bss section in bytes, represents memory allocated for uninitialized global and static variables, 
+										// it reserves space for these variables in memory, which are initialized to zero during program startup.
+//    DWORD   AddressOfEntryPoint; // EntryPoint RVA, located in .text section
+//    DWORD   BaseOfCode; // the RVA of the .code section 
+//    DWORD   BaseOfData; // the RVA of the .data section 
 //    //
 //    // NT additional fields.
 //    //
-//
-//    DWORD   ImageBase;
+//    DWORD   ImageBase; // preferred base address of image in memory
 //    DWORD   SectionAlignment;
 //    DWORD   FileAlignment;
 //    WORD    MajorOperatingSystemVersion;
@@ -141,8 +131,8 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //    WORD    MajorSubsystemVersion;
 //    WORD    MinorSubsystemVersion;
 //    DWORD   Win32VersionValue;
-//    DWORD   SizeOfImage;
-//    DWORD   SizeOfHeaders;
+//    DWORD   SizeOfImage;		//size of the image in memory when the executable file is loaded into the process's address space
+//    DWORD   SizeOfHeaders;	
 //    DWORD   CheckSum;
 //    WORD    Subsystem;
 //    WORD    DllCharacteristics;
@@ -156,25 +146,21 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //} IMAGE_OPTIONAL_HEADER32, * PIMAGE_OPTIONAL_HEADER32;
 
 
-int main(int argc, char* argv[])
-{
-	if (argc != 2) {
-		printf("Usage: PE_Parser.exe <file>");
-		return 1;
-	}
-	
-	LPVOID lpPEBuff = ReadPE("C:\\Users\\User\\source\\repos\\PE_Parser\\x64\\Release\\PE_Parser.exe");
-
-	PIMAGE_NT_HEADERS pNTHeaders = ParseDOSHeader(lpPEBuff);
-	
-	IMAGE_FILE_HEADER FileHdr = pNTHeaders->FileHeader;
-
-	printf("### PARSING FILE HEADER ###\n\n");
-	
+//typedef struct _IMAGE_FILE_HEADER {
+//	WORD    Machine;
+//	WORD    NumberOfSections;
+//	DWORD   TimeDateStamp;
+//	DWORD   PointerToSymbolTable;
+//	DWORD   NumberOfSymbols;
+//	WORD    SizeOfOptionalHeader;
+//	WORD    Characteristics;
+//} IMAGE_FILE_HEADER, * PIMAGE_FILE_HEADER;
+void ParseFileHeader(IMAGE_FILE_HEADER FileHdr) {
 	WORD arch = FileHdr.Machine;
 
 	if (arch == IMAGE_FILE_MACHINE_AMD64) {
 		printf("Machine: %d -> x64\n", arch);
+
 	}
 	else if (arch == IMAGE_FILE_MACHINE_I386) {
 		printf("Machine: %d -> x86\n", arch);
@@ -183,6 +169,53 @@ int main(int argc, char* argv[])
 		printf("Machine: %d -> ARM?\n", arch);
 	}
 
+	WORD wChar = FileHdr.Characteristics;
+
+	if (wChar & IMAGE_FILE_EXECUTABLE_IMAGE) {
+		printf("Characteristics: Executable\n");
+	}
+	if (wChar & IMAGE_FILE_DLL) {
+		printf("Characteristics: DLL\n");
+	}
+
+	printf("Number of sections: %d\n", FileHdr.NumberOfSections);
+}
+
+void ParseOptHeader(LPVOID OptHdr) {
+
+}
+
+
+
+int main(int argc, char* argv[])
+{
+	if (argc != 2) {
+		printf("Usage: PE_Parser.exe <file>");
+		return 1;
+	}
+	
+	LPVOID lpPEBuff = ReadPE(argv[1]);
+
+	PIMAGE_NT_HEADERS pNTHeaders = ParseDOSHeader(lpPEBuff);
+	
+	
+
+	printf("### PARSING NT HEADERS ###\n\n");
+
+	DWORD dSignature = pNTHeaders->Signature;
+
+	printf("Signature: 0x%x, %c%c\n\n", dSignature, (char)(dSignature), (char)(dSignature >> 8));
+
+	printf("### PARSING FILE HEADER ###\n\n");
+
+	IMAGE_FILE_HEADER FileHdr = pNTHeaders->FileHeader;
+	
+	ParseFileHeader(FileHdr);
+	
+
+	printf("\n### PARSING OPTIONAL HEADER ###\n\n");
+
+	IMAGE_OPTIONAL_HEADER pOptHdr = (IMAGE_OPTIONAL_HEADER)pNTHeaders->OptionalHeader;
 
 	return 0;
 }
