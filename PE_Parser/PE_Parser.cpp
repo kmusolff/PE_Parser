@@ -146,24 +146,6 @@ PIMAGE_NT_HEADERS ParseDOSHeader(LPVOID lpHeaderAddr) {
 //} IMAGE_OPTIONAL_HEADER32, * PIMAGE_OPTIONAL_HEADER32;
 
 
-//// Directory Entries
-//
-//#define IMAGE_DIRECTORY_ENTRY_EXPORT          0   // Export Directory
-//#define IMAGE_DIRECTORY_ENTRY_IMPORT          1   // Import Directory
-//#define IMAGE_DIRECTORY_ENTRY_RESOURCE        2   // Resource Directory
-//#define IMAGE_DIRECTORY_ENTRY_EXCEPTION       3   // Exception Directory
-//#define IMAGE_DIRECTORY_ENTRY_SECURITY        4   // Security Directory
-//#define IMAGE_DIRECTORY_ENTRY_BASERELOC       5   // Base Relocation Table
-//#define IMAGE_DIRECTORY_ENTRY_DEBUG           6   // Debug Directory
-////      IMAGE_DIRECTORY_ENTRY_COPYRIGHT       7   // (X86 usage)
-//#define IMAGE_DIRECTORY_ENTRY_ARCHITECTURE    7   // Architecture Specific Data
-//#define IMAGE_DIRECTORY_ENTRY_GLOBALPTR       8   // RVA of GP
-//#define IMAGE_DIRECTORY_ENTRY_TLS             9   // TLS Directory
-//#define IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG    10   // Load Configuration Directory
-//#define IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT   11   // Bound Import Directory in headers
-//#define IMAGE_DIRECTORY_ENTRY_IAT            12   // Import Address Table
-//#define IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT   13   // Delay Load Import Descriptors
-//#define IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR 14   // COM Runtime descriptor
 
 
 //typedef struct _IMAGE_DATA_DIRECTORY {
@@ -218,10 +200,36 @@ void ParseOptHeader(IMAGE_OPTIONAL_HEADER OptHdr) {
 	
 }
 
-void ParseDataDir(IMAGE_OPTIONAL_HEADER OptHdr) {
+const char* directory_entries[] = {
+	"IMAGE_DIRECTORY_ENTRY_EXPORT",    // Export Directory
+	"IMAGE_DIRECTORY_ENTRY_IMPORT",    // Import Directory
+	"IMAGE_DIRECTORY_ENTRY_RESOURCE",  // Resource Directory
+	"IMAGE_DIRECTORY_ENTRY_EXCEPTION", // Exception Directory
+	"IMAGE_DIRECTORY_ENTRY_SECURITY",  // Security Directory
+	"IMAGE_DIRECTORY_ENTRY_BASERELOC", // Base Relocation Table
+	"IMAGE_DIRECTORY_ENTRY_DEBUG",     // Debug Directory
+	"IMAGE_DIRECTORY_ENTRY_COPYRIGHT", // (X86 usage)
+	"IMAGE_DIRECTORY_ENTRY_ARCHITECTURE",    // Architecture Specific Data
+	"IMAGE_DIRECTORY_ENTRY_GLOBALPTR",       // RVA of GP
+	"IMAGE_DIRECTORY_ENTRY_TLS",             // TLS Directory
+	"IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG",     // Load Configuration Directory
+	"IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT",    // Bound Import Directory in headers
+	"IMAGE_DIRECTORY_ENTRY_IAT",             // Import Address Table
+	"IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT",    // Delay Load Import Descriptors
+	"IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR"  // COM Runtime descriptor
+};
+
+
+void ParseDataDir(IMAGE_OPTIONAL_HEADER OptHdr, LPDWORD ImpDir, LPDWORD ExpDir, LPDWORD BaseReloc) {
 	for (int i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++) {
-		printf("Data directory index %d: RVA=%d Size=%d\n", i, OptHdr.DataDirectory[i].VirtualAddress, OptHdr.DataDirectory[i].Size);
+		printf("Data directory index %d (%s): RVA=%d Size=%d\n", i,directory_entries[i], OptHdr.DataDirectory[i].VirtualAddress, OptHdr.DataDirectory[i].Size);
 	}
+
+	*ImpDir = OptHdr.DataDirectory[1].VirtualAddress;
+	*ExpDir = OptHdr.DataDirectory[0].VirtualAddress;
+	*BaseReloc = OptHdr.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
+
+	printf("%d %d %d\n", *ImpDir, *ExpDir, *BaseReloc);
 }
 
 int main(int argc, char* argv[])
@@ -258,7 +266,12 @@ int main(int argc, char* argv[])
 
 	printf("\n### PARSING DATA DIRECTORY ###\n\n");
 
-	ParseDataDir(OptHdr);
+	DWORD lpExpOffset = 0;
+	DWORD lpImpOffset = 0;
+
+	DWORD lpBaseRelocOffset = 0;
+
+	ParseDataDir(OptHdr, &lpImpOffset, &lpExpOffset, &lpBaseRelocOffset);
 
 	return 0;
 }
