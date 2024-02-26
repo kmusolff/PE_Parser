@@ -1,4 +1,3 @@
-
 #include <windows.h>
 #include <cstdio>
 
@@ -232,6 +231,30 @@ void ParseDataDir(IMAGE_OPTIONAL_HEADER OptHdr, LPDWORD ImpDir, LPDWORD ExpDir, 
 	printf("%d %d %d\n", *ImpDir, *ExpDir, *BaseReloc);
 }
 
+
+//typedef struct _IMAGE_SECTION_HEADER {
+//	BYTE    Name[IMAGE_SIZEOF_SHORT_NAME];
+//	union {
+//		DWORD   PhysicalAddress;
+//		DWORD   VirtualSize;
+//	} Misc;
+//	DWORD   VirtualAddress;
+//	DWORD   SizeOfRawData;
+//	DWORD   PointerToRawData;
+//	DWORD   PointerToRelocations;
+//	DWORD   PointerToLinenumbers;
+//	WORD    NumberOfRelocations;
+//	WORD    NumberOfLinenumbers;
+//	DWORD   Characteristics;
+//} IMAGE_SECTION_HEADER, * PIMAGE_SECTION_HEADER;
+
+void ParseSections(PIMAGE_SECTION_HEADER pSecHdr, WORD wNumofSec) {
+	
+	for (int i = 0; i < wNumofSec; i++) {
+		printf("Section %s -> Vaddr: 0x%x Size: 0x%x Relocs: %d @ %d\n", pSecHdr[i].Name, pSecHdr[i].VirtualAddress, pSecHdr[i].SizeOfRawData, pSecHdr[i].NumberOfRelocations, pSecHdr[i].PointerToRelocations);
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	if (argc != 2) {
@@ -242,8 +265,6 @@ int main(int argc, char* argv[])
 	LPVOID lpPEBuff = ReadPE(argv[1]);
 
 	PIMAGE_NT_HEADERS pNTHeaders = ParseDOSHeader(lpPEBuff);
-	
-	
 
 	printf("### PARSING NT HEADERS ###\n\n");
 
@@ -254,6 +275,8 @@ int main(int argc, char* argv[])
 	printf("### PARSING FILE HEADER ###\n\n");
 
 	IMAGE_FILE_HEADER FileHdr = pNTHeaders->FileHeader;
+
+	WORD wNumOfSec = FileHdr.NumberOfSections;
 	
 	ParseFileHeader(FileHdr);
 	
@@ -272,6 +295,12 @@ int main(int argc, char* argv[])
 	DWORD lpBaseRelocOffset = 0;
 
 	ParseDataDir(OptHdr, &lpImpOffset, &lpExpOffset, &lpBaseRelocOffset);
+
+	printf("\n### PARSING SECTION HEADERS ###\n\n");
+
+	PIMAGE_SECTION_HEADER SecHdr = IMAGE_FIRST_SECTION(pNTHeaders);
+
+	ParseSections(SecHdr, wNumOfSec);
 
 	return 0;
 }
